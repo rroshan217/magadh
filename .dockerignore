@@ -1,0 +1,7 @@
+target/*.original
+.git
+.github
+.idea
+.vscode
+*.iml
+README.md

@@ -37,6 +37,8 @@
     </dependencies>
 
     <build>
+    <finalName>springboot-demo</finalName>
+
         <plugins>
 
             <plugin>
