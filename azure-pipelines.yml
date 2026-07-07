@@ -1,0 +1,71 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureServiceConnection: 'ARC_Connect'
+  acrName: 'rakeshacr'
+  acrLoginServer: 'rakeshacr.azurecr.io'
+  imageName: 'springboot-demo'
+  imageTag: '$(Build.SourceVersion)'
+  webAppName: 'springboot-demo-rakesh'
+
+steps:
+
+# Checkout source
+- checkout: self
+  clean: true
+
+# Install Java 17
+- task: JavaToolInstaller@0
+  displayName: 'Install Java 17'
+  inputs:
+    versionSpec: '17'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+
+# Build Spring Boot application
+- task: Maven@4
+  displayName: 'Build Maven Project'
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean package -DskipTests'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+
+# Login to Azure and Azure Container Registry
+- task: AzureCLI@2
+  displayName: 'Login to Azure & ACR'
+  inputs:
+    azureSubscription: 'ARC_Connect'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      echo "Azure Login Successful"
+      az account show
+
+      echo "Logging into Azure Container Registry..."
+      az acr login --name $(acrName)
+
+# Build Docker image
+- script: |
+    docker build \
+      -t $(acrLoginServer)/$(imageName):$(imageTag) \
+      -t $(acrLoginServer)/$(imageName):latest .
+  displayName: 'Build Docker Image'
+
+# Push Docker image
+- script: |
+    docker push $(acrLoginServer)/$(imageName):$(imageTag)
+    docker push $(acrLoginServer)/$(imageName):latest
+  displayName: 'Push Docker Image'
+
+# Deploy to Azure Web App
+- task: AzureWebAppContainer@1
+  displayName: 'Deploy to Azure Web App'
+  inputs:
+    azureSubscription: 'ARC_Connect'
+    appName: 'springboot-demo-rakesh'
+    containers: 'rakeshacr.azurecr.io/springboot-demo:latest'
